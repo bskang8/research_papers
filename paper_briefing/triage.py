@@ -52,11 +52,14 @@ def _get_gemini_client():
 _TAGS = list(TOPIC_KEYWORDS.keys())  # ["AD", "VLA", "Manipulation", "Sim", "Safety"]
 
 _SYSTEM_PROMPT = f"""You are a robotics/AI research assistant.
-For each paper, return ONLY a JSON array. Each element must have:
+For each paper, analyze and provide:
   - "id": paper arxiv short id (e.g. "2401.12345")
   - "summary": 3-5 sentence detailed summary in Korean (연구의 핵심 문제, 제안하는 방법론, 주요 실험 결과, 그리고 실용적 의의를 포함)
   - "tags": list (1-3) from {_TAGS}
   - "score": float 0-5 (relevance to autonomous driving, VLA, robot manipulation, sim-to-real, safety)
+
+Return a JSON object with a "papers" key containing the array of results.
+Example: {{"papers": [{{"id": "2401.12345", "summary": "...", "tags": ["VLA"], "score": 4.5}}]}}
 
 Return valid JSON only, no markdown fences."""
 
@@ -110,20 +113,32 @@ def _triage_with_openai(papers: List[Paper]) -> List[Paper]:
             raw = resp.choices[0].message.content or "{}"
             parsed = json.loads(raw)
 
-            # 응답이 배열 직접이거나 {"papers": [...]} 형태 모두 처리
+            # 응답 형식 처리: {"papers": [...]} 또는 배열 직접
             if isinstance(parsed, list):
                 items = parsed
+            elif "papers" in parsed and isinstance(parsed["papers"], list):
+                items = parsed["papers"]
             else:
+                # 첫 번째 리스트 값 찾기 (fallback)
                 items = next(
                     (v for v in parsed.values() if isinstance(v, list)), []
                 )
 
             for item in items:
+                # item이 딕셔너리가 아니면 건너뛰기
+                if not isinstance(item, dict):
+                    print(f"[triage] 경고: 예상치 않은 item 타입 {type(item)}: {item}")
+                    continue
+                
                 pid = str(item.get("id", "")).strip()
-                results[pid] = item
+                if pid:
+                    results[pid] = item
 
         except Exception as exc:
             print(f"[triage] OpenAI batch {i//TRIAGE_BATCH + 1} 실패: {exc}")
+            # 디버깅을 위해 raw 응답 일부 출력
+            if 'raw' in locals():
+                print(f"[triage] 응답 일부: {raw[:200]}...")
 
     # 결과 주입
     for paper in papers:
@@ -165,10 +180,13 @@ def _triage_with_gemini(papers: List[Paper]) -> List[Paper]:
             raw = response.text
             parsed = json.loads(raw)
 
-            # 응답이 배열 직접이거나 {"papers": [...]} 형태 모두 처리
+            # 응답 형식 처리: {"papers": [...]} 또는 배열 직접
             if isinstance(parsed, list):
                 items = parsed
+            elif "papers" in parsed and isinstance(parsed["papers"], list):
+                items = parsed["papers"]
             else:
+                # 첫 번째 리스트 값 찾기 (fallback)
                 items = next(
                     (v for v in parsed.values() if isinstance(v, list)), []
                 )

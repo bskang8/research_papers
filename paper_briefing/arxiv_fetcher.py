@@ -137,7 +137,7 @@ def fetch_recent_papers(max_results: int = MAX_FETCH) -> List[Paper]:
     학회지 논문 확보를 위해 각 년도당 100개씩 수집합니다.
     """
     current_year = datetime.now().year
-    client = arxiv.Client(page_size=50, delay_seconds=5, num_retries=3)
+    client = arxiv.Client(page_size=50, delay_seconds=10, num_retries=3)
     
     all_papers: List[Paper] = []
     
@@ -156,6 +156,7 @@ def fetch_recent_papers(max_results: int = MAX_FETCH) -> List[Paper]:
     
     all_papers.extend(year0_papers)
     print(f"[fetch] 최근 ({current_year}년): {len(year0_papers)}개 수집")
+    time.sleep(10)  # arXiv API rate limit 방지
     
     # ── 1년전 (최대 100개) ──
     year1_query = f"{SEARCH_QUERY} AND submittedDate:[{current_year-1}0101 TO {current_year-1}1231]"
@@ -172,6 +173,7 @@ def fetch_recent_papers(max_results: int = MAX_FETCH) -> List[Paper]:
     
     all_papers.extend(year1_papers)
     print(f"[fetch] 1년전 ({current_year-1}년): {len(year1_papers)}개 수집")
+    time.sleep(10)  # arXiv API rate limit 방지
     
     # ── 2년전 (최대 100개) ──
     year2_query = f"{SEARCH_QUERY} AND submittedDate:[{current_year-2}0101 TO {current_year-2}1231]"
@@ -188,6 +190,7 @@ def fetch_recent_papers(max_results: int = MAX_FETCH) -> List[Paper]:
     
     all_papers.extend(year2_papers)
     print(f"[fetch] 2년전 ({current_year-2}년): {len(year2_papers)}개 수집")
+    time.sleep(10)  # arXiv API rate limit 방지
     
     # ── 3~4년전 (최대 100개) ──
     year34_query = f"{SEARCH_QUERY} AND submittedDate:[{current_year-4}0101 TO {current_year-3}1231]"
@@ -348,7 +351,7 @@ def fetch_and_select_papers(seen: Set[str]) -> List[Paper]:
         조건을 만족하는 논문 리스트
     """
     current_year = datetime.now().year
-    client = arxiv.Client(page_size=50, delay_seconds=5, num_retries=3)
+    client = arxiv.Client(page_size=50, delay_seconds=10, num_retries=3)
 
     # (레이블, 검색 시작 연도, 검색 종료 연도, 할당량)
     year_configs = [
@@ -413,6 +416,11 @@ def fetch_and_select_papers(seen: Set[str]) -> List[Paper]:
             print(f"  ⚠️ 경고: 후보 부족으로 {len(selected)}/{quota}편만 확보")
 
         all_selected.extend(selected)
+        
+        # arXiv API rate limit 방지를 위해 다음 연도 검색 전 대기
+        if label != year_configs[-1][0]:  # 마지막 연도가 아닌 경우
+            print("  (다음 연도 검색 전 10초 대기...)")
+            time.sleep(10)
 
     total_conf = sum(1 for p in all_selected if p.conference)
     print(

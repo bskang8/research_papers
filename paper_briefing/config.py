@@ -27,8 +27,8 @@ MAX_FETCH   = 60   # arXiv에서 가져올 후보 수 (seen 필터링 후 30편 
 MAX_PROCESS = 30   # AI 트리아지·Slack 전송 대상 최대 논문 수
 
 # ── AI 설정 ───────────────────────────────────────────────────────────────────
-LLM_PROVIDER  = "gemini" ## os.getenv("LLM_PROVIDER", "openai").lower()  # "openai" or "gemini"
-OPENAI_MODEL  = "gpt-4o-mini"
+LLM_PROVIDER  = "openai" ## os.getenv("LLM_PROVIDER", "openai").lower()  # "openai" or "gemini"
+OPENAI_MODEL  = "gpt-4o"
 GEMINI_MODEL  = "models/gemini-2.5-flash"  # 빠르고 저렴 (alternatives: gemini-2.0-flash, gemini-flash-latest)
 TRIAGE_BATCH  = 10          # 한 번에 트리아지할 논문 수 (품질·안정성 균형)
 ABSTRACT_CHARS = 600        # 초록 잘라 보낼 최대 길이

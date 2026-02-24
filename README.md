@@ -156,6 +156,9 @@ python run_briefing.py --reset --dry-run
 
 # Zotero 저장 건너뛰기
 python run_briefing.py --no-zotero
+
+# MongoDB 초기화 후 테스트 실행 (Slack/Zotero 제외)
+python run_briefing.py --reset --dry-run
 ```
 
 ### 실행 단계 설명

@@ -31,6 +31,9 @@ def save_log(papers: List[Paper]) -> str:
             "citation_count": p.citation_count,
             "arxiv_url": p.arxiv_url,
             "pdf_url": p.pdf_url,
+            "journal_ref": p.journal_ref,
+            "comment": p.comment,
+            "conference": p.conference,
         }
         for p in papers
     ]
