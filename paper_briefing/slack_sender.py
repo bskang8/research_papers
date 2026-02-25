@@ -50,9 +50,19 @@ def _build_blocks(papers: List[Paper]) -> list:
             "text": {"type": "mrkdwn", "text": f"*{header_text}*\n{links}"},
         })
         authors_str = ", ".join(p.authors)
+        
+        # 메타 정보 구성: 저자 | 학회 | 인용수 | 출판일
+        meta_parts = [authors_str]
+        if p.conference:
+            meta_parts.append(f"📚 {p.conference}")
+        if p.citation_count > 0:
+            meta_parts.append(f"📖 {p.citation_count} citations")
+        meta_parts.append(p.published)
+        meta_str = " | ".join(meta_parts)
+        
         blocks.append({
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": f"{p.summary}\n_{authors_str} | {p.published}_"}],
+            "elements": [{"type": "mrkdwn", "text": f"{p.summary}\n_{meta_str}_"}],
         })
         blocks.append({"type": "divider"})
 

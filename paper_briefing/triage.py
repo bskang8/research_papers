@@ -133,6 +133,10 @@ def _triage_with_openai(papers: List[Paper]) -> List[Paper]:
                 pid = str(item.get("id", "")).strip()
                 if pid:
                     results[pid] = item
+                    # 버전 번호 없이도 매칭할 수 있도록 추가 저장
+                    pid_without_version = pid.split('v')[0] if 'v' in pid else pid
+                    if pid_without_version != pid:
+                        results[pid_without_version] = item
 
         except Exception as exc:
             print(f"[triage] OpenAI batch {i//TRIAGE_BATCH + 1} 실패: {exc}")
@@ -143,6 +147,16 @@ def _triage_with_openai(papers: List[Paper]) -> List[Paper]:
     # 결과 주입
     for paper in papers:
         info = results.get(paper.id, {})
+        
+        # 버전 번호 없이도 시도 (예: 2401.12345v1 → 2401.12345)
+        if not info:
+            paper_id_without_version = paper.id.split('v')[0] if 'v' in paper.id else paper.id
+            info = results.get(paper_id_without_version, {})
+        
+        # 매칭 실패 시 디버깅 정보 출력
+        if not info:
+            print(f"[triage] 경고: 논문 {paper.id} ({paper.title[:50]}...)의 요약을 찾을 수 없음")
+        
         paper.summary = info.get("summary", "요약 없음")
         paper.tags = info.get("tags", [])
         try:
@@ -151,9 +165,6 @@ def _triage_with_openai(papers: List[Paper]) -> List[Paper]:
             paper.score = 0.0
 
     return papers
-
-
-def _triage_with_gemini(papers: List[Paper]) -> List[Paper]:
     """Gemini API를 사용한 논문 트리아지."""
     client = _get_gemini_client()
     if client is None:
@@ -193,7 +204,12 @@ def _triage_with_gemini(papers: List[Paper]) -> List[Paper]:
 
             for item in items:
                 pid = str(item.get("id", "")).strip()
-                results[pid] = item
+                if pid:
+                    results[pid] = item
+                    # 버전 번호 없이도 매칭할 수 있도록 추가 저장
+                    pid_without_version = pid.split('v')[0] if 'v' in pid else pid
+                    if pid_without_version != pid:
+                        results[pid_without_version] = item
 
         except Exception as exc:
             print(f"[triage] Gemini batch {i//TRIAGE_BATCH + 1} 실패: {exc}")
@@ -201,6 +217,16 @@ def _triage_with_gemini(papers: List[Paper]) -> List[Paper]:
     # 결과 주입
     for paper in papers:
         info = results.get(paper.id, {})
+        
+        # 버전 번호 없이도 시도 (예: 2401.12345v1 → 2401.12345)
+        if not info:
+            paper_id_without_version = paper.id.split('v')[0] if 'v' in paper.id else paper.id
+            info = results.get(paper_id_without_version, {})
+        
+        # 매칭 실패 시 디버깅 정보 출력
+        if not info:
+            print(f"[triage] 경고: 논문 {paper.id} ({paper.title[:50]})의 요약을 찾을 수 없음")
+        
         paper.summary = info.get("summary", "요약 없음")
         paper.tags = info.get("tags", [])
         try:

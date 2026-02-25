@@ -57,6 +57,37 @@ def main() -> None:
     print("[main] AI 트리아지 중...")
     triaged = triage_papers(to_process)
 
+    # 요약이 없는 논문들을 최대 2번 재시도
+    for retry_count in range(1, 3):
+        # 요약이 없는 논문들 찾기 (summary가 비어있거나 "요약 없음"인 경우)
+        missing_summary = [
+            p for p in triaged 
+            if not p.summary or p.summary.strip() == "" or p.summary == "요약 없음"
+        ]
+        
+        if not missing_summary:
+            print(f"[main] 모든 논문에 요약이 생성되었습니다.")
+            break
+            
+        print(f"[main] 재시도 {retry_count}/2: 요약이 없는 논문 {len(missing_summary)}편 재처리 중...")
+        
+        # 요약이 없는 논문들만 다시 트리아지
+        retried = triage_papers(missing_summary)
+        
+        # 결과를 원본 리스트에 반영 (in-place 업데이트)
+        retried_dict = {p.id: p for p in retried}
+        for i, paper in enumerate(triaged):
+            if paper.id in retried_dict:
+                triaged[i] = retried_dict[paper.id]
+    
+    # 최종 확인
+    still_missing = [
+        p for p in triaged 
+        if not p.summary or p.summary.strip() == "" or p.summary == "요약 없음"
+    ]
+    if still_missing:
+        print(f"[main] 경고: {len(still_missing)}편의 논문이 여전히 요약이 없습니다.")
+
     # 결과 미리보기 (상위 5편)
     print("\n[미리보기] 상위 5편:")
     for p in sorted(triaged, key=lambda x: x.score, reverse=True)[:5]:
@@ -73,7 +104,7 @@ def main() -> None:
         return
 
     # # ── 5. Slack 전송 ──────────────────────────────────────────────────────────
-    # send_to_slack(triaged)
+    send_to_slack(triaged)
 
     # # ── 6. Zotero 저장 (선택) ──────────────────────────────────────────────────
     # if not args.no_zotero:
