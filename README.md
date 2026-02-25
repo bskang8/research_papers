@@ -535,18 +535,86 @@ db.papers.aggregate([
 
 ## 🔄 자동화 (Cron)
 
+### Cron 설정
+
 매일 자동 실행하려면:
 
 ```bash
-# cron 설정 실행
+# cron 설정 실행 (매일 오전 7시)
 bash setup_cron.sh
 
 # 또는 직접 crontab 편집
 crontab -e
 
-# 추가할 내용 (매일 오전 9시 실행)
-0 9 * * * cd /home/bskang/papers && /home/bskang/miniconda3/envs/Papers/bin/python run_briefing.py
+# 추가할 내용 (매일 오전 7시 실행)
+0 7 * * * cd /home/bskang/papers && /home/bskang/miniconda3/envs/Papers/bin/python run_briefing.py >> /home/bskang/papers/logs/cron.log 2>&1
 ```
+
+### Cron 작업 상태 확인
+
+#### 빠른 확인 (추천)
+
+```bash
+# 상태 확인 스크립트 실행
+./check_status.sh
+```
+
+이 스크립트는 다음 정보를 한눈에 보여줍니다:
+- ✅ Cron 작업 등록 여부
+- ✅ Cron 서비스 활성화 상태
+- ⏰ 다음 실행 예정 시간
+- 📋 최근 실행 로그
+- 📊 생성된 논문 로그 파일
+- 💾 MongoDB 저장 상태
+
+#### 개별 확인 명령어
+
+```bash
+# 1. Cron 등록 확인
+crontab -l
+
+# 2. Cron 서비스 상태
+systemctl is-active cron    # active면 정상
+
+# 3. 실시간 로그 모니터링 (실행 중일 때)
+tail -f logs/cron.log
+
+# 4. 최근 실행 로그 확인
+tail -20 logs/cron.log
+
+# 5. 시스템 로그에서 cron 실행 기록 확인
+grep CRON /var/log/syslog | tail -10
+
+# 6. 생성된 논문 로그 파일 확인
+ls -lht logs/2026-*.json | head -5
+
+# 7. MongoDB 저장 상태 확인
+python -c "from paper_briefing.state import load_seen; print(f'{len(load_seen())}편 처리됨')"
+```
+
+#### Cron 작업 관리
+
+```bash
+# Cron 작업 목록 보기
+crontab -l
+
+# Cron 작업 편집
+crontab -e
+
+# Cron 작업 전체 삭제
+crontab -r
+
+# 특정 작업만 삭제
+crontab -l | grep -v 'run_briefing.py' | crontab -
+```
+
+#### 실행 확인 체크리스트
+
+다음날 오전 7시 10분경 확인:
+- [ ] `logs/cron.log` 파일 생성됨
+- [ ] `logs/YYYY-MM-DD.json` 파일 생성됨
+- [ ] Slack 메시지 수신 (설정한 경우)
+- [ ] MongoDB 논문 개수 증가
 
 ---
 
