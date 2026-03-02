@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}arXiv Paper Briefing - 날짜별 목록{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-calendar3 me-2" style="color:#818cf8"></i>날짜별 논문 브리핑
+    </h4>
+    <small class="text-muted">매일 수집된 arXiv 논문을 날짜별로 확인합니다</small>
+  </div>
+  <div class="d-flex gap-3">
+    <div class="stat-card text-center">
+      <div class="stat-num">{{ total_papers }}</div>
+      <div class="stat-label">전체 논문</div>
+    </div>
+    <div class="stat-card text-center">
+      <div class="stat-num">{{ dates | length }}</div>
+      <div class="stat-label">수집 일수</div>
+    </div>
+  </div>
+</div>
+
+{% if dates %}
+<div class="row g-3">
+  {% for d in dates %}
+  <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+    <a href="/date/{{ d._id }}" class="text-decoration-none">
+      <div class="card date-card h-100 p-3">
+        <div class="d-flex align-items-start justify-content-between mb-2">
+          <div>
+            <div class="text-muted" style="font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px">
+              {{ d._id | replace('-', '.') }}
+            </div>
+            <div class="fw-bold mt-1" style="font-size:1.05rem; color:#e2e8f0">
+              {% set parts = d._id.split('-') %}
+              {{ parts[1] }}월 {{ parts[2] }}일
+            </div>
+          </div>
+          <div class="text-end">
+            <span class="badge rounded-pill" style="background:#252840; color:#818cf8; font-size:.8rem">
+              {{ d.count }}편
+            </span>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-auto">
+          <div class="d-flex align-items-center gap-1">
+            <i class="bi bi-star-fill" style="color:#fbbf24; font-size:.75rem"></i>
+            <small style="color:#fbbf24; font-weight:600">{{ "%.1f" | format(d.avg_score) }}</small>
+            <small class="text-muted" style="font-size:.7rem">평균</small>
+          </div>
+          {% if d.conf_count > 0 %}
+          <div class="d-flex align-items-center gap-1">
+            <i class="bi bi-award-fill" style="color:#a5b4fc; font-size:.75rem"></i>
+            <small style="color:#a5b4fc; font-size:.75rem">{{ d.conf_count }}개 학회지</small>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-inbox" style="font-size:3rem"></i>
+  <p class="mt-3">저장된 논문이 없습니다.</p>
+</div>
+{% endif %}
+{% endblock %}

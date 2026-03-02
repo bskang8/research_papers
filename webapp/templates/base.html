@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}arXiv Paper Briefing{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    .navbar { background: #1a1d2e !important; border-bottom: 1px solid #2d3748; }
+    .navbar-brand { font-weight: 700; letter-spacing: -0.5px; font-size: 1.1rem; }
+    .card { background: #1a1d2e; border: 1px solid #2d3748; transition: border-color .2s, transform .15s; }
+    .card:hover { border-color: #4f5d73; }
+    .paper-card:hover { transform: translateY(-1px); border-color: #6366f1; }
+    .score-badge {
+      font-size: .75rem; font-weight: 700;
+      padding: 3px 8px; border-radius: 20px; min-width: 42px;
+      text-align: center; display: inline-block;
+    }
+    .score-5 { background: #166534; color: #86efac; }
+    .score-4 { background: #14532d; color: #4ade80; }
+    .score-3 { background: #713f12; color: #fde047; }
+    .score-2 { background: #7f1d1d; color: #fca5a5; }
+    .score-1 { background: #1f2937; color: #9ca3af; }
+    .tag-badge {
+      font-size: .7rem; font-weight: 600; padding: 2px 8px;
+      border-radius: 12px; display: inline-block;
+    }
+    .tag-AD          { background: rgba(59,130,246,.2);  color: #93c5fd; border: 1px solid rgba(59,130,246,.4); }
+    .tag-VLA         { background: rgba(168,85,247,.2);  color: #d8b4fe; border: 1px solid rgba(168,85,247,.4); }
+    .tag-Manipulation{ background: rgba(34,197,94,.2);   color: #86efac; border: 1px solid rgba(34,197,94,.4); }
+    .tag-Sim         { background: rgba(249,115,22,.2);  color: #fdba74; border: 1px solid rgba(249,115,22,.4); }
+    .tag-Safety      { background: rgba(239,68,68,.2);   color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
+    .conf-badge {
+      font-size: .68rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 4px; background: rgba(99,102,241,.25);
+      color: #a5b4fc; border: 1px solid rgba(99,102,241,.4);
+      letter-spacing: .3px;
+    }
+    .date-card { cursor: pointer; }
+    .date-card:hover { border-color: #6366f1 !important; transform: translateY(-2px); }
+    .search-box { background: #252840; border: 1px solid #3d4266; color: #e2e8f0; }
+    .search-box:focus { background: #252840; border-color: #6366f1; color: #e2e8f0; box-shadow: 0 0 0 .2rem rgba(99,102,241,.25); }
+    .btn-primary { background: #6366f1; border-color: #6366f1; }
+    .btn-primary:hover { background: #4f52e0; border-color: #4f52e0; }
+    .btn-outline-secondary { border-color: #3d4266; color: #94a3b8; }
+    .btn-outline-secondary:hover { background: #252840; border-color: #6366f1; color: #e2e8f0; }
+    .active-filter { background: #6366f1 !important; border-color: #6366f1 !important; color: #fff !important; }
+    .citation-count { font-size: .72rem; color: #64748b; }
+    .paper-title { color: #e2e8f0; font-weight: 600; font-size: .95rem; line-height: 1.4; }
+    .paper-title:hover { color: #a5b4fc; text-decoration: none; }
+    .summary-text { font-size: .85rem; color: #94a3b8; line-height: 1.6; }
+    .abstract-text { font-size: .85rem; color: #7c8ca0; line-height: 1.7; }
+    .meta-label { font-size: .72rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .page-header { border-bottom: 1px solid #2d3748; padding-bottom: .75rem; margin-bottom: 1.5rem; }
+    .stat-card { background: #252840; border: 1px solid #2d3748; border-radius: 8px; padding: .75rem 1rem; }
+    .stat-num { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; }
+    .stat-label { font-size: .72rem; color: #64748b; }
+    footer { border-top: 1px solid #2d3748; margin-top: 3rem; padding: 1.5rem 0; }
+
+    /* ── 북마크 버튼 ── */
+    .btn-bookmark {
+      background: transparent;
+      border: 1px solid #3d4266;
+      color: #64748b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+      transition: all .15s;
+      cursor: pointer;
+    }
+    .btn-bookmark:hover { border-color: #f59e0b; color: #f59e0b; }
+    .btn-bookmark.bookmarked { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,.1); }
+    .btn-bookmark.bookmarked:hover { border-color: #dc2626; color: #dc2626; background: rgba(220,38,38,.1); }
+    .btn-bookmark.loading { opacity: .5; pointer-events: none; }
+
+    /* ── Toast ── */
+    #bm-toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
+      background: #1a1d2e; border: 1px solid #2d3748;
+      border-radius: 10px; padding: .65rem 1.1rem;
+      font-size: .85rem; color: #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      display: none; align-items: center; gap: .5rem;
+      animation: slideUp .2s ease;
+    }
+    #bm-toast.show { display: flex; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 북마크 nav 카운트 뱃지 */
+    .bm-nav-count {
+      font-size: .65rem; background: #f59e0b; color: #0f1117;
+      border-radius: 10px; padding: 1px 6px; font-weight: 700;
+      vertical-align: middle; margin-left: 3px;
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <i class="bi bi-journal-bookmark-fill me-1" style="color:#818cf8"></i>arXiv Paper Briefing
+    </a>
+    <div class="d-flex align-items-center gap-3 ms-auto">
+      <!-- 나중에 볼 논문 링크 -->
+      <a href="/bookmarks" class="text-decoration-none d-flex align-items-center gap-1"
+         style="color:#94a3b8; font-size:.88rem;"
+         id="nav-bookmark-link">
+        <i class="bi bi-bookmark-heart-fill" style="color:#f59e0b"></i>
+        나중에 볼 논문
+        <span class="bm-nav-count" id="nav-bm-count"
+              {% if bookmark_count is defined and bookmark_count > 0 %}
+              style="display:inline"
+              {% else %}
+              style="display:none"
+              {% endif %}>
+          {{ bookmark_count if bookmark_count is defined else 0 }}
+        </span>
+      </a>
+      <!-- 검색 -->
+      <form class="d-flex" action="/search" method="get">
+        <input class="form-control form-control-sm search-box me-2" type="search"
+               name="q" placeholder="논문 검색..." value="{{ request.args.get('q','') }}" style="width:210px">
+        <button class="btn btn-sm btn-primary" type="submit">
+          <i class="bi bi-search"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+  {% block content %}{% endblock %}
+</div>
+
+<footer class="text-center text-muted">
+  <div class="container">
+    <small>arXiv Paper Briefing Dashboard</small>
+  </div>
+</footer>
+
+<!-- Toast -->
+<div id="bm-toast">
+  <i id="bm-toast-icon" class="bi"></i>
+  <span id="bm-toast-msg"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── 북마크 토글 ──────────────────────────────────────────────────────────────
+let _toastTimer = null;
+
+function showToast(icon, msg) {
+  const t = document.getElementById('bm-toast');
+  document.getElementById('bm-toast-icon').className = 'bi ' + icon;
+  document.getElementById('bm-toast-msg').textContent = msg;
+  t.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function updateNavCount(total) {
+  const badge = document.getElementById('nav-bm-count');
+  if (!badge) return;
+  if (total > 0) {
+    badge.textContent = total;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleBookmark(paperId, btn) {
+  btn.classList.add('loading');
+  fetch('/api/bookmark/' + encodeURIComponent(paperId), { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      btn.classList.remove('loading');
+      if (data.bookmarked) {
+        btn.classList.add('bookmarked');
+        btn.querySelector('i').className = 'bi bi-bookmark-fill';
+        btn.title = '북마크 해제';
+        showToast('bi-bookmark-fill text-warning', '나중에 볼 논문에 추가됐습니다');
+      } else {
+        btn.classList.remove('bookmarked');
+        btn.querySelector('i').className = 'bi bi-bookmark';
+        btn.title = '나중에 볼 논문에 추가';
+        showToast('bi-bookmark text-secondary', '북마크가 해제됐습니다');
+      }
+      updateNavCount(data.total);
+    })
+    .catch(() => {
+      btn.classList.remove('loading');
+      showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다');
+    });
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

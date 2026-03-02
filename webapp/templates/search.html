@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_paper_card.html" import render_card %}
+{% block title %}검색: {{ q }} - arXiv Paper Briefing{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4 class="mb-0 fw-bold">
+    <i class="bi bi-search me-2" style="color:#818cf8"></i>
+    {% if q %}검색: "{{ q }}"{% else %}전체 검색{% endif %}
+    <small class="text-muted fw-normal" style="font-size:.85rem">— {{ papers|length }}편</small>
+  </h4>
+</div>
+
+<form action="/search" method="get" class="mb-4">
+  <div class="d-flex gap-2">
+    <input class="form-control search-box flex-grow-1" type="search" name="q"
+           placeholder="제목, 요약, 초록으로 검색..." value="{{ q }}">
+    <button class="btn btn-primary px-4" type="submit">검색</button>
+  </div>
+</form>
+
+<div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
+  {% if all_tags %}
+  <div class="d-flex gap-1 flex-wrap">
+    <a href="/search?q={{ q }}&sort={{ sort_by }}"
+       class="btn btn-sm btn-outline-secondary {% if not tag_filter %}active-filter{% endif %}">전체 태그</a>
+    {% for tag in all_tags %}
+    <a href="/search?q={{ q }}&tag={{ tag }}&sort={{ sort_by }}"
+       class="btn btn-sm btn-outline-secondary tag-badge tag-{{ tag }} {% if tag_filter == tag %}active-filter{% endif %}"
+       style="padding:4px 10px;border-radius:12px">{{ tag }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if all_confs %}
+  <div class="vr d-none d-sm-block" style="color:#3d4266"></div>
+  <div class="d-flex gap-1 flex-wrap">
+    {% for conf in all_confs %}
+    <a href="/search?q={{ q }}&conf={{ conf }}&sort={{ sort_by }}"
+       class="btn btn-sm btn-outline-secondary conf-badge {% if conf_filter == conf %}active-filter{% endif %}"
+       style="padding:3px 8px;border-radius:4px">{{ conf }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="vr d-none d-sm-block" style="color:#3d4266"></div>
+  <div class="d-flex gap-1">
+    {% for s_key, s_label in [('score','점수순'),('citation','인용수순'),('published','출판일순')] %}
+    <a href="/search?q={{ q }}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if conf_filter %}&conf={{ conf_filter }}{% endif %}&sort={{ s_key }}"
+       class="btn btn-sm btn-outline-secondary {% if sort_by == s_key %}active-filter{% endif %}">{{ s_label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if papers %}
+<div class="d-flex flex-column gap-3">
+  {% for p in papers %}{{ render_card(p, bookmarked_ids) }}{% endfor %}
+</div>
+{% elif q %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-search" style="font-size:2.5rem"></i>
+  <p class="mt-3">"{{ q }}"에 해당하는 논문을 찾을 수 없습니다.</p>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-search" style="font-size:2.5rem"></i>
+  <p class="mt-3">검색어를 입력하세요.</p>
+</div>
+{% endif %}
+{% endblock %}

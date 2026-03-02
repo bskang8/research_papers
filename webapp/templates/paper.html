@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ paper.title[:60] }} - arXiv Paper Briefing{% endblock %}
+
+{% block content %}
+{# ── 뒤로가기 ── #}
+<div class="mb-3">
+  <a href="/date/{{ saved_date }}" class="text-muted text-decoration-none" style="font-size:.85rem">
+    <i class="bi bi-chevron-left"></i> {{ saved_date }} 목록으로
+  </a>
+</div>
+
+<div class="row g-4">
+  {# ── 좌측: 메인 콘텐츠 ── #}
+  <div class="col-lg-8">
+    <div class="card p-4">
+      {# 제목 + 북마크 버튼 #}
+      <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+        <h5 class="fw-bold mb-0" style="color:#e2e8f0; line-height:1.5">{{ paper.title }}</h5>
+        {% set is_bookmarked = paper.id in bookmarked_ids %}
+        <button class="btn-bookmark flex-shrink-0 {% if is_bookmarked %}bookmarked{% endif %}"
+                onclick="toggleBookmark('{{ paper.id }}', this)"
+                title="{{ '북마크 해제' if is_bookmarked else '나중에 볼 논문에 추가' }}"
+                style="padding:6px 10px; border-radius:8px; font-size:.85rem; white-space:nowrap">
+          <i class="bi {{ 'bi-bookmark-fill' if is_bookmarked else 'bi-bookmark' }} me-1"></i>
+          <span class="bm-btn-label">{{ '북마크 해제' if is_bookmarked else '나중에 볼 논문' }}</span>
+        </button>
+      </div>
+
+      {# 메타 #}
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
+        {% set sc = paper.score | float %}
+        {% if sc >= 4.5 %}
+        <span class="score-badge score-5">{{ "%.1f" | format(sc) }}</span>
+        {% elif sc >= 3.5 %}
+        <span class="score-badge score-4">{{ "%.1f" | format(sc) }}</span>
+        {% elif sc >= 2.5 %}
+        <span class="score-badge score-3">{{ "%.1f" | format(sc) }}</span>
+        {% elif sc >= 1.5 %}
+        <span class="score-badge score-2">{{ "%.1f" | format(sc) }}</span>
+        {% else %}
+        <span class="score-badge score-1">{{ "%.1f" | format(sc) }}</span>
+        {% endif %}
+
+        {% for tag in paper.tags %}
+        <span class="tag-badge tag-{{ tag }}">{{ tag }}</span>
+        {% endfor %}
+
+        {% if paper.conference %}
+        <span class="conf-badge">{{ paper.conference }}</span>
+        {% endif %}
+
+        {% if paper.citation_count %}
+        <span class="citation-count">
+          <i class="bi bi-quote"></i> {{ paper.citation_count }}회 인용
+        </span>
+        {% endif %}
+      </div>
+
+      {# AI 요약 #}
+      {% if paper.summary and paper.summary != '요약 없음' %}
+      <div class="mb-4">
+        <div class="meta-label mb-2">
+          <i class="bi bi-stars me-1" style="color:#818cf8"></i>AI 요약
+        </div>
+        <p class="summary-text mb-0" style="font-size:.9rem; color:#cbd5e1">{{ paper.summary }}</p>
+      </div>
+      {% endif %}
+
+      {# 초록 #}
+      <div class="mb-4">
+        <div class="meta-label mb-2">
+          <i class="bi bi-file-text me-1"></i>Abstract
+        </div>
+        <p class="abstract-text mb-0">{{ paper.abstract }}</p>
+      </div>
+    </div>
+  </div>
+
+  {# ── 우측: 메타데이터 & 링크 ── #}
+  <div class="col-lg-4">
+    <div class="card p-4 mb-3">
+      <div class="meta-label mb-3">논문 정보</div>
+
+      <div class="d-flex flex-column gap-3">
+        {# 저자 #}
+        {% if paper.authors %}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">저자</div>
+          <div style="font-size:.88rem; color:#cbd5e1; margin-top:3px">{{ paper.authors | join(', ') }}</div>
+        </div>
+        {% endif %}
+
+        {# 제출일 #}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">제출일</div>
+          <div style="font-size:.88rem; color:#cbd5e1; margin-top:3px">{{ paper.published }}</div>
+        </div>
+
+        {# 카테고리 #}
+        {% if paper.categories %}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">카테고리</div>
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            {% for cat in paper.categories %}
+            <span style="font-size:.68rem; background:#252840; color:#94a3b8; padding:2px 7px; border-radius:4px; border:1px solid #3d4266">{{ cat }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {# 학회 #}
+        {% if paper.conference %}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">학회</div>
+          <div style="margin-top:3px"><span class="conf-badge">{{ paper.conference }}</span></div>
+        </div>
+        {% endif %}
+
+        {# journal_ref / comment #}
+        {% if paper.journal_ref %}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">Journal Ref</div>
+          <div style="font-size:.82rem; color:#94a3b8; margin-top:3px">{{ paper.journal_ref }}</div>
+        </div>
+        {% endif %}
+        {% if paper.comment %}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">Comment</div>
+          <div style="font-size:.82rem; color:#94a3b8; margin-top:3px">{{ paper.comment }}</div>
+        </div>
+        {% endif %}
+
+        {# arXiv ID #}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">arXiv ID</div>
+          <div style="font-size:.82rem; color:#94a3b8; margin-top:3px; font-family:monospace">{{ paper.id }}</div>
+        </div>
+
+        {# 저장일 #}
+        <div>
+          <div style="font-size:.72rem; color:#64748b; font-weight:600">수집일</div>
+          <div style="font-size:.82rem; color:#94a3b8; margin-top:3px">{{ paper.saved_at[:16] | replace('T', ' ') }}</div>
+        </div>
+      </div>
+    </div>
+
+    {# 링크 버튼 #}
+    <div class="card p-4">
+      <div class="meta-label mb-3">링크</div>
+      <div class="d-flex flex-column gap-2">
+        <a href="{{ paper.arxiv_url }}" target="_blank" class="btn btn-primary w-100">
+          <i class="bi bi-box-arrow-up-right me-2"></i>arXiv 페이지
+        </a>
+        {% if paper.pdf_url %}
+        <a href="{{ paper.pdf_url }}" target="_blank" class="btn btn-outline-secondary w-100">
+          <i class="bi bi-file-earmark-pdf me-2"></i>PDF 다운로드
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 상세 페이지에서 버튼 라벨도 함께 변경
+window.toggleBookmark = function(paperId, btn) {
+  btn.classList.add('loading');
+  fetch('/api/bookmark/' + encodeURIComponent(paperId), { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      btn.classList.remove('loading');
+      const label = btn.querySelector('.bm-btn-label');
+      if (data.bookmarked) {
+        btn.classList.add('bookmarked');
+        btn.querySelector('i').className = 'bi bi-bookmark-fill me-1';
+        btn.title = '북마크 해제';
+        if (label) label.textContent = '북마크 해제';
+        showToast('bi-bookmark-fill text-warning', '나중에 볼 논문에 추가됐습니다');
+      } else {
+        btn.classList.remove('bookmarked');
+        btn.querySelector('i').className = 'bi bi-bookmark me-1';
+        btn.title = '나중에 볼 논문에 추가';
+        if (label) label.textContent = '나중에 볼 논문';
+        showToast('bi-bookmark text-secondary', '북마크가 해제됐습니다');
+      }
+      updateNavCount(data.total);
+    })
+    .catch(() => {
+      btn.classList.remove('loading');
+      showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다');
+    });
+};
+</script>
+{% endblock %}

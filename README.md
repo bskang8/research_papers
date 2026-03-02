@@ -9,6 +9,8 @@
 - **인용수 추적**: Semantic Scholar API로 인용수 자동 수집
 - **중복 방지**: MongoDB 기반 논문 ID 추적
 - **데이터 저장**: MongoDB + JSON 로그 파일
+- **웹 대시보드**: 날짜별·태그별 논문 조회 및 전체 검색 기능
+- **나중에 볼 논문**: 관심 논문 북마크 및 모아보기 기능
 
 ---
 
@@ -39,6 +41,7 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 pyzotero>=1.5.0
 pymongo>=4.6.0
+flask>=3.0.0
 ```
 
 ### 2. MongoDB Docker 컨테이너 생성
@@ -185,6 +188,99 @@ python run_briefing.py --reset --dry-run
 8. (선택) Slack 전송
    ↓
 9. (선택) Zotero 저장 (점수 4.0 이상)
+```
+
+---
+
+## 🌐 웹 대시보드
+
+MongoDB에 저장된 논문을 브라우저에서 날짜별로 탐색하고 관심 논문을 북마크할 수 있는 웹 인터페이스입니다.
+
+### 구성
+
+- **배포 방식**: Standalone Flask + systemd user service
+  - MongoDB는 Docker로 운영하지만, 웹 앱은 기존 cron·스크립트와 동일하게 standalone으로 실행
+  - `Papers` conda 환경에서 직접 실행하여 추가적인 컨테이너 네트워킹 없이 간단하게 동작
+- **포트**: `5000` (환경변수 `WEBAPP_PORT`로 변경 가능)
+- **접속 URL**: `http://<서버 IP>:5000`
+
+### 페이지 구성
+
+| 경로 | 설명 |
+|------|------|
+| `/` | 수집 날짜별 카드 목록 (논문 수·평균 점수·학회지 수 표시) |
+| `/date/YYYY-MM-DD` | 해당 날짜 논문 목록 (태그·학회 필터, 점수·인용수·출판일 정렬) |
+| `/paper/<arxiv_id>` | 논문 상세 (AI 요약·초록·메타데이터·링크) |
+| `/search?q=...` | 제목·요약·초록 전문 검색 |
+| `/bookmarks` | 나중에 볼 논문 모아보기 |
+
+### 서비스 시작 및 관리
+
+서비스는 로그인 시 자동 시작되도록 등록되어 있습니다.
+
+```bash
+# 상태 확인
+systemctl --user status arxiv-dashboard
+
+# 재시작 (코드 변경 후)
+systemctl --user restart arxiv-dashboard
+
+# 중지
+systemctl --user stop arxiv-dashboard
+
+# 시작
+systemctl --user start arxiv-dashboard
+
+# 실시간 로그
+journalctl --user -u arxiv-dashboard -f
+```
+
+### 수동 실행 (서비스 없이)
+
+```bash
+conda activate Papers
+cd /home/bskang/papers/webapp
+python app.py
+```
+
+---
+
+## 🔖 나중에 볼 논문 (북마크)
+
+관심 있는 논문을 표시해 두고 별도 페이지에서 모아볼 수 있는 기능입니다.
+
+### 동작 방식
+
+- 각 논문 카드 우측 상단의 `🔖` 버튼을 클릭하면 즉시 북마크 토글 (페이지 이동 없음)
+- 북마크 상태는 MongoDB `bookmarks` 컬렉션에 영구 저장
+- 내비게이션 바의 **"나중에 볼 논문"** 링크 옆 숫자 뱃지로 북마크 수 표시
+
+### 북마크 추가 가능 위치
+
+- 날짜별 논문 목록 (`/date/YYYY-MM-DD`)
+- 전체 검색 결과 (`/search`)
+- 논문 상세 페이지 (`/paper/<id>`)
+
+### 나중에 볼 논문 페이지 (`/bookmarks`)
+
+- 북마크 추가순·점수순·인용수순·출판일순 정렬
+- 태그·학회 필터
+- 북마크 해제 시 카드 애니메이션으로 즉시 제거
+- **전체 해제** 버튼으로 일괄 초기화
+
+### MongoDB 스키마 (`bookmarks` 컬렉션)
+
+```javascript
+{
+  "paper_id":     "2401.12345v1",          // arXiv ID (고유 키)
+  "bookmarked_at": "2026-03-02T19:08:19"  // 북마크 추가 시각
+}
+```
+
+### API
+
+```
+POST /api/bookmark/<arxiv_id>   → { "bookmarked": true/false, "total": <전체 북마크 수> }
 ```
 
 ---
@@ -401,6 +497,7 @@ GEMINI_API_KEY=AIzaSy...
 ├── requirements.txt        # Python 패키지
 ├── run_briefing.py         # 메인 실행 스크립트
 ├── setup_cron.sh           # cron 설정 스크립트
+├── check_status.sh         # cron/서비스 상태 확인 스크립트
 ├── concept.md              # 프로젝트 컨셉 문서
 ├── README.md               # 이 파일
 │
@@ -413,6 +510,18 @@ GEMINI_API_KEY=AIzaSy...
 │   ├── logger.py           # JSON 로그 저장
 │   ├── slack_sender.py     # Slack 전송
 │   └── zotero_saver.py     # Zotero 저장
+│
+├── webapp/                 # 웹 대시보드
+│   ├── app.py              # Flask 앱 (라우팅 + 북마크 API)
+│   ├── start.sh            # 수동 실행 스크립트
+│   └── templates/
+│       ├── base.html       # 공통 레이아웃 (Bootstrap 5 dark)
+│       ├── index.html      # 날짜별 카드 목록
+│       ├── date.html       # 날짜별 논문 목록 (필터·정렬)
+│       ├── paper.html      # 논문 상세 페이지
+│       ├── search.html     # 전체 검색
+│       ├── bookmarks.html  # 나중에 볼 논문 목록
+│       └── _paper_card.html # 논문 카드 공통 매크로
 │
 ├── data/
 │   └── seen_papers.json    # (레거시) 처리된 논문 ID
@@ -664,10 +773,16 @@ python test_criteria.py
 ## 🎯 주요 명령어 요약
 
 ```bash
-# === 실행 ===
+# === 논문 수집 실행 ===
 python run_briefing.py                    # 전체 실행
 python run_briefing.py --dry-run          # 테스트 (Slack/Zotero 제외)
 python run_briefing.py --reset --dry-run  # MongoDB 초기화 후 실행
+
+# === 웹 대시보드 ===
+systemctl --user status arxiv-dashboard   # 상태 확인
+systemctl --user restart arxiv-dashboard  # 재시작 (코드 변경 후)
+systemctl --user stop arxiv-dashboard     # 중지
+journalctl --user -u arxiv-dashboard -f   # 실시간 로그
 
 # === MongoDB Docker ===
 docker ps | grep mongo                    # 상태 확인
@@ -679,10 +794,12 @@ docker exec -it arxiv-mongodb mongosh     # Shell 접속
 # === 데이터 확인 ===
 python -c "from paper_briefing.state import load_seen; print(len(load_seen()))"
 docker exec arxiv-mongodb mongosh arxiv_papers --eval "db.papers.countDocuments()"
+docker exec arxiv-mongodb mongosh arxiv_papers --eval "db.bookmarks.countDocuments()"
 
 # === 데이터 삭제 ===
 python -c "from paper_briefing.state import reset_database; reset_database()"
 docker exec -it arxiv-mongodb mongosh arxiv_papers --eval "db.papers.deleteMany({})"
+docker exec -it arxiv-mongodb mongosh arxiv_papers --eval "db.bookmarks.deleteMany({})"
 ```
 
 ---
@@ -728,4 +845,4 @@ docker run --rm -v mongodb_data:/data -v $(pwd):/backup ubuntu tar czf /backup/m
 
 ---
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-03-02

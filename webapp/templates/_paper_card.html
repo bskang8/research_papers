@@ -1,0 +1,67 @@
+{% macro render_card(p, bookmarked_ids, show_saved_date=False) %}
+{% set is_bookmarked = p.id in bookmarked_ids %}
+{% set sc = p.score | float %}
+<div class="card paper-card" id="card-{{ p.id | replace('.','_') | replace('/','_') }}">
+  <div class="card-body py-3 px-4">
+    <div class="d-flex gap-3">
+
+      {# 점수 #}
+      <div class="flex-shrink-0 pt-1">
+        {% if sc >= 4.5 %}<span class="score-badge score-5">{{ "%.1f"|format(sc) }}</span>
+        {% elif sc >= 3.5 %}<span class="score-badge score-4">{{ "%.1f"|format(sc) }}</span>
+        {% elif sc >= 2.5 %}<span class="score-badge score-3">{{ "%.1f"|format(sc) }}</span>
+        {% elif sc >= 1.5 %}<span class="score-badge score-2">{{ "%.1f"|format(sc) }}</span>
+        {% else            %}<span class="score-badge score-1">{{ "%.1f"|format(sc) }}</span>
+        {% endif %}
+      </div>
+
+      {# 본문 #}
+      <div class="flex-grow-1" style="min-width:0">
+        <a href="/paper/{{ p.id }}" class="paper-title d-block mb-1">{{ p.title }}</a>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          {% for tag in p.tags %}<span class="tag-badge tag-{{ tag }}">{{ tag }}</span>{% endfor %}
+          {% if p.conference %}<span class="conf-badge">{{ p.conference }}</span>{% endif %}
+          {% if p.citation_count %}<span class="citation-count"><i class="bi bi-quote"></i> {{ p.citation_count }}회 인용</span>{% endif %}
+          <span class="citation-count">{{ p.published }}</span>
+          {% if show_saved_date and p.bookmarked_at %}
+          <span class="citation-count" style="background:#1a2030;padding:1px 6px;border-radius:4px;color:#f59e0b">
+            <i class="bi bi-bookmark-fill" style="font-size:.65rem"></i>
+            {{ p.bookmarked_at[:10] }}
+          </span>
+          {% endif %}
+          {% if p.authors %}
+          <span class="citation-count text-truncate" style="max-width:260px">{{ p.authors | join(', ') }}</span>
+          {% endif %}
+        </div>
+
+        {% if p.summary and p.summary != '요약 없음' %}
+        <p class="summary-text mb-0">{{ p.summary[:280] }}{% if p.summary|length > 280 %}…{% endif %}</p>
+        {% endif %}
+      </div>
+
+      {# 액션 버튼 묶음 #}
+      <div class="flex-shrink-0 d-flex flex-column gap-1 pt-1">
+        {# 북마크 버튼 #}
+        <button class="btn-bookmark {% if is_bookmarked %}bookmarked{% endif %}"
+                onclick="toggleBookmark('{{ p.id }}', this)"
+                title="{{ '북마크 해제' if is_bookmarked else '나중에 볼 논문에 추가' }}">
+          <i class="bi {{ 'bi-bookmark-fill' if is_bookmarked else 'bi-bookmark' }}" style="font-size:.9rem"></i>
+        </button>
+        {# arXiv 링크 #}
+        <a href="{{ p.arxiv_url }}" target="_blank"
+           class="btn btn-sm btn-outline-secondary px-2 py-1" title="arXiv">
+          <i class="bi bi-box-arrow-up-right" style="font-size:.8rem"></i>
+        </a>
+        {% if p.pdf_url %}
+        <a href="{{ p.pdf_url }}" target="_blank"
+           class="btn btn-sm btn-outline-secondary px-2 py-1" title="PDF">
+          <i class="bi bi-file-earmark-pdf" style="font-size:.8rem"></i>
+        </a>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endmacro %}
