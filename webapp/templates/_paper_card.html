@@ -38,6 +38,38 @@
         {% if p.summary and p.summary != '요약 없음' %}
         <p class="summary-text mb-0">{{ p.summary[:280] }}{% if p.summary|length > 280 %}…{% endif %}</p>
         {% endif %}
+
+        {# 참조 링크 #}
+        {% set safe_id = p.id | replace('.','_') | replace('/','_') %}
+        <div class="refs-wrap mt-2">
+          <div class="d-flex flex-wrap gap-1 mb-1{{ ' d-none' if not p.refs }}" id="refs-{{ safe_id }}">
+            {% for ref in p.refs or [] %}
+            <span class="ref-chip">
+              <a href="{{ ref.url }}" target="_blank" rel="noopener" title="{{ ref.url }}">
+                <i class="bi bi-link-45deg"></i> {{ ref.title[:35] }}{% if ref.title | length > 35 %}…{% endif %}
+              </a>
+              <button class="ref-del-btn" onclick="deleteRef('{{ p.id }}', '{{ ref.ref_id }}')" title="삭제">
+                <i class="bi bi-x"></i>
+              </button>
+            </span>
+            {% endfor %}
+          </div>
+          <div id="ref-form-{{ safe_id }}" style="display:none; gap:4px; flex-wrap:wrap; align-items:center; margin-top:4px">
+            <input type="url" class="form-control form-control-sm ref-url" placeholder="https://..."
+                   style="min-width:150px;flex:1;font-size:.78rem"
+                   onkeydown="if(event.key==='Enter')submitRef('{{ p.id }}')">
+            <input type="text" class="form-control form-control-sm ref-title" placeholder="제목 (선택)"
+                   style="width:110px;font-size:.78rem"
+                   onkeydown="if(event.key==='Enter')submitRef('{{ p.id }}')">
+            <button class="btn btn-sm btn-primary" style="font-size:.75rem;white-space:nowrap"
+                    onclick="submitRef('{{ p.id }}')">추가</button>
+            <button class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;white-space:nowrap"
+                    onclick="hideRefForm('{{ p.id }}')">취소</button>
+          </div>
+          <button class="btn-add-ref" id="ref-add-btn-{{ safe_id }}" onclick="showRefForm('{{ p.id }}')">
+            <i class="bi bi-plus-circle"></i> 링크 추가
+          </button>
+        </div>
       </div>
 
       {# 액션 버튼 묶음 #}

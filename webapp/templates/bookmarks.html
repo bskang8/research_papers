@@ -26,7 +26,7 @@
 <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
   {% if all_tags %}
   <div class="d-flex gap-1 flex-wrap">
-    <a href="/bookmarks{% if sort_by != 'bookmarked_at' %}?sort={{ sort_by }}{% endif %}"
+    <a href="/bookmarks{% if sort_by != 'saved_at' %}?sort={{ sort_by }}{% endif %}"
        class="btn btn-sm btn-outline-secondary {% if not tag_filter %}active-filter{% endif %}">전체</a>
     {% for tag in all_tags %}
     <a href="/bookmarks?tag={{ tag }}&sort={{ sort_by }}{% if conf_filter %}&conf={{ conf_filter }}{% endif %}"
@@ -49,7 +49,7 @@
 
   <div class="vr d-none d-sm-block" style="color:#3d4266"></div>
   <div class="d-flex gap-1">
-    {% for s_key, s_label in [('bookmarked_at','추가순'),('score','점수순'),('citation','인용수순'),('published','출판일순')] %}
+    {% for s_key, s_label in [('saved_at','수집일순'),('score','점수순'),('citation','인용수순'),('published','출판일순')] %}
     <a href="/bookmarks?sort={{ s_key }}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if conf_filter %}&conf={{ conf_filter }}{% endif %}"
        class="btn btn-sm btn-outline-secondary {% if sort_by == s_key %}active-filter{% endif %}">{{ s_label }}</a>
     {% endfor %}
@@ -57,8 +57,27 @@
 </div>
 
 {# ── 논문 카드 목록 ── #}
-<div class="d-flex flex-column gap-3" id="bookmarks-list">
-  {% for p in papers %}{{ render_card(p, bookmarked_ids, show_saved_date=True) }}{% endfor %}
+<div id="bookmarks-list">
+{% if sort_by == 'saved_at' %}
+  {% for date, group in papers | groupby('saved_date') | reverse %}
+  <div class="date-group mb-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="fw-semibold" style="color:#f59e0b;font-size:.9rem">
+        <i class="bi bi-calendar3 me-1"></i>{{ date }}
+      </span>
+      <span class="text-muted" style="font-size:.8rem">{{ group | list | length }}편</span>
+      <hr class="flex-grow-1 my-0" style="border-color:#2d3354">
+    </div>
+    <div class="d-flex flex-column gap-3">
+      {% for p in group %}{{ render_card(p, bookmarked_ids) }}{% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="d-flex flex-column gap-3">
+    {% for p in papers %}{{ render_card(p, bookmarked_ids, show_saved_date=True) }}{% endfor %}
+  </div>
+{% endif %}
 </div>
 
 {% else %}
@@ -95,9 +114,12 @@ window.toggleBookmark = function(paperId, btn) {
           card.style.transform = 'translateX(20px)';
           setTimeout(() => {
             card.remove();
+            // 빈 날짜 그룹 제거
+            const group = card.closest('.date-group');
+            if (group && group.querySelectorAll('.paper-card').length === 0) group.remove();
             // 남은 카드가 없으면 빈 상태로 전환
             const list = document.getElementById('bookmarks-list');
-            if (list && list.children.length === 0) location.reload();
+            if (list && list.querySelectorAll('.paper-card').length === 0) location.reload();
           }, 300);
         }
         showToast('bi-bookmark text-secondary', '북마크가 해제됐습니다');

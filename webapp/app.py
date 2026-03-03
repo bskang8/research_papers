@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -212,7 +213,7 @@ def search():
 
 @app.route("/bookmarks")
 def bookmarks():
-    sort_by     = request.args.get("sort", "bookmarked_at")
+    sort_by     = request.args.get("sort", "saved_at")
     tag_filter  = request.args.get("tag", "")
     conf_filter = request.args.get("conf", "")
 
@@ -233,9 +234,10 @@ def bookmarks():
 
     papers = list(papers_col.find({"id": {"$in": list(bm_map.keys())}}, {"_id": 0}))
 
-    # 북마크 날짜 주입
+    # 북마크 날짜 주입 및 수집일 날짜 필드 추가
     for p in papers:
         p["bookmarked_at"] = bm_map.get(p["id"], "")
+        p["saved_date"] = p.get("saved_at", "")[:10]
 
     # 필터 옵션
     all_tags  = sorted(set(t for p in papers for t in p.get("tags", [])))
@@ -247,12 +249,12 @@ def bookmarks():
         papers = [p for p in papers if p.get("conference") == conf_filter]
 
     sort_key_map = {
-        "bookmarked_at": lambda p: p.get("bookmarked_at", ""),
-        "score":         lambda p: p.get("score", 0),
-        "citation":      lambda p: p.get("citation_count", 0),
-        "published":     lambda p: p.get("published", ""),
+        "saved_at":  lambda p: p.get("saved_at", ""),
+        "score":     lambda p: p.get("score", 0),
+        "citation":  lambda p: p.get("citation_count", 0),
+        "published": lambda p: p.get("published", ""),
     }
-    papers = sorted(papers, key=sort_key_map.get(sort_by, sort_key_map["bookmarked_at"]), reverse=True)
+    papers = sorted(papers, key=sort_key_map.get(sort_by, sort_key_map["saved_at"]), reverse=True)
 
     bookmarked_ids = set(bm_map.keys())
     bookmark_count = len(bookmarked_ids)
@@ -288,6 +290,32 @@ def toggle_bookmark(paper_id: str):
 
     total = bm_col.count_documents({})
     return jsonify({"bookmarked": bookmarked, "total": total})
+
+
+# ── 참조 링크 API ────────────────────────────────────────────────────────────
+
+@app.route("/api/paper/<path:paper_id>/refs", methods=["POST"])
+def add_ref(paper_id: str):
+    data = request.get_json(force=True) or {}
+    url = (data.get("url") or "").strip()
+    title = (data.get("title") or "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    col = get_collection()
+    if not col.find_one({"id": paper_id}, {"_id": 1}):
+        return jsonify({"error": "paper not found"}), 404
+    ref = {"ref_id": str(uuid.uuid4()), "url": url, "title": title or url}
+    col.update_one({"id": paper_id}, {"$push": {"refs": ref}})
+    paper = col.find_one({"id": paper_id}, {"refs": 1, "_id": 0})
+    return jsonify({"refs": paper.get("refs", [])})
+
+
+@app.route("/api/paper/<path:paper_id>/refs/<ref_id>", methods=["DELETE"])
+def delete_ref(paper_id: str, ref_id: str):
+    col = get_collection()
+    col.update_one({"id": paper_id}, {"$pull": {"refs": {"ref_id": ref_id}}})
+    paper = col.find_one({"id": paper_id}, {"refs": 1, "_id": 0})
+    return jsonify({"refs": paper.get("refs", [])})
 
 
 if __name__ == "__main__":

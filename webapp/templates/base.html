@@ -97,6 +97,28 @@
       border-radius: 10px; padding: 1px 6px; font-weight: 700;
       vertical-align: middle; margin-left: 3px;
     }
+
+    /* ── 참조 링크 ── */
+    .ref-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.3);
+      border-radius: 6px; padding: 2px 8px 2px 6px; font-size: .73rem; max-width: 240px;
+    }
+    .ref-chip a {
+      color: #a5b4fc; text-decoration: none;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ref-chip a:hover { color: #e2e8f0; text-decoration: underline; }
+    .ref-del-btn {
+      background: none; border: none; color: #64748b;
+      cursor: pointer; padding: 0; line-height: 1; font-size: .85rem; flex-shrink: 0;
+    }
+    .ref-del-btn:hover { color: #ef4444; }
+    .btn-add-ref {
+      background: none; border: none; color: #475569;
+      cursor: pointer; padding: 0; font-size: .73rem; line-height: 1.6;
+    }
+    .btn-add-ref:hover { color: #818cf8; }
   </style>
 </head>
 <body>
@@ -171,6 +193,84 @@ function updateNavCount(total) {
     badge.style.display = 'inline';
   } else {
     badge.style.display = 'none';
+  }
+}
+
+// ── 참조 링크 ──────────────────────────────────────────────────────────────
+function _sid(paperId) {
+  return paperId.replace(/\./g, '_').replace(/\//g, '_');
+}
+
+function showRefForm(paperId) {
+  const sid = _sid(paperId);
+  document.getElementById('ref-form-' + sid).style.display = 'flex';
+  document.getElementById('ref-add-btn-' + sid).style.display = 'none';
+}
+
+function hideRefForm(paperId) {
+  const sid = _sid(paperId);
+  const form = document.getElementById('ref-form-' + sid);
+  form.style.display = 'none';
+  form.querySelector('.ref-url').value = '';
+  form.querySelector('.ref-title').value = '';
+  document.getElementById('ref-add-btn-' + sid).style.display = '';
+}
+
+function submitRef(paperId) {
+  const sid = _sid(paperId);
+  const form = document.getElementById('ref-form-' + sid);
+  const url = form.querySelector('.ref-url').value.trim();
+  const title = form.querySelector('.ref-title').value.trim();
+  if (!url) { showToast('bi-exclamation-circle text-danger', 'URL을 입력하세요'); return; }
+  fetch('/api/paper/' + encodeURIComponent(paperId) + '/refs', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url, title})
+  }).then(r => r.json()).then(data => {
+    if (data.error) { showToast('bi-exclamation-circle text-danger', data.error); return; }
+    _renderRefs(paperId, data.refs);
+    hideRefForm(paperId);
+    showToast('bi-link-45deg text-primary', '링크가 추가됐습니다');
+  }).catch(() => showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다'));
+}
+
+function deleteRef(paperId, refId) {
+  fetch('/api/paper/' + encodeURIComponent(paperId) + '/refs/' + encodeURIComponent(refId), {
+    method: 'DELETE'
+  }).then(r => r.json()).then(data => {
+    _renderRefs(paperId, data.refs);
+    showToast('bi-link text-secondary', '링크가 삭제됐습니다');
+  }).catch(() => showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다'));
+}
+
+function _renderRefs(paperId, refs) {
+  const container = document.getElementById('refs-' + _sid(paperId));
+  if (!container) return;
+  container.innerHTML = '';
+  if (refs && refs.length > 0) {
+    container.classList.remove('d-none');
+    refs.forEach(ref => {
+      const displayTitle = ref.title.length > 35 ? ref.title.slice(0, 35) + '…' : ref.title;
+      const chip = document.createElement('span');
+      chip.className = 'ref-chip';
+      const link = document.createElement('a');
+      link.href = ref.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = ref.url;
+      link.innerHTML = '<i class="bi bi-link-45deg"></i> ';
+      link.appendChild(document.createTextNode(displayTitle));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'ref-del-btn';
+      delBtn.title = '삭제';
+      delBtn.innerHTML = '<i class="bi bi-x"></i>';
+      delBtn.addEventListener('click', () => deleteRef(paperId, ref.ref_id));
+      chip.appendChild(link);
+      chip.appendChild(delBtn);
+      container.appendChild(chip);
+    });
+  } else {
+    container.classList.add('d-none');
   }
 }
 
