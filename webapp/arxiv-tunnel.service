@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloudflare Tunnel for arXiv Webapp
+After=network.target arxiv-webapp.service
+Wants=arxiv-webapp.service
+
+[Service]
+Type=simple
+User=bskang
+ExecStart=/home/bskang/bin/cloudflared tunnel --url http://localhost:5000 --logfile /tmp/cloudflared.log
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

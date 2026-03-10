@@ -1,0 +1,15 @@
+[Unit]
+Description=arXiv Paper Briefing Web Dashboard
+After=network.target mongod.service
+Wants=mongod.service
+
+[Service]
+Type=simple
+User=bskang
+WorkingDirectory=/home/bskang/papers/webapp
+ExecStart=/home/bskang/papers/webapp/start.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

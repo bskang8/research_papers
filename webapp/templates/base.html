@@ -143,6 +143,12 @@
           {{ bookmark_count if bookmark_count is defined else 0 }}
         </span>
       </a>
+      <!-- 로그아웃 -->
+      <a href="/logout" class="text-decoration-none d-flex align-items-center gap-1"
+         style="color:#94a3b8; font-size:.88rem;">
+        <i class="bi bi-box-arrow-right"></i>
+        로그아웃
+      </a>
       <!-- 검색 -->
       <form class="d-flex" action="/search" method="get">
         <input class="form-control form-control-sm search-box me-2" type="search"
@@ -222,22 +228,31 @@ function submitRef(paperId) {
   const url = form.querySelector('.ref-url').value.trim();
   const title = form.querySelector('.ref-title').value.trim();
   if (!url) { showToast('bi-exclamation-circle text-danger', 'URL을 입력하세요'); return; }
-  fetch('/api/paper/' + encodeURIComponent(paperId) + '/refs', {
+  fetch(location.origin + '/api/paper/' + encodeURIComponent(paperId) + '/refs', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({url, title})
-  }).then(r => r.json()).then(data => {
+  }).then(r => {
+    if (r.status === 401) { location.href = '/login'; return Promise.reject('auth'); }
+    return r.json();
+  }).then(data => {
     if (data.error) { showToast('bi-exclamation-circle text-danger', data.error); return; }
     _renderRefs(paperId, data.refs);
     hideRefForm(paperId);
     showToast('bi-link-45deg text-primary', '링크가 추가됐습니다');
-  }).catch(() => showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다'));
+  }).catch((err) => {
+    if (err === 'auth') return;
+    showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다');
+  });
 }
 
 function deleteRef(paperId, refId) {
-  fetch('/api/paper/' + encodeURIComponent(paperId) + '/refs/' + encodeURIComponent(refId), {
+  fetch(location.origin + '/api/paper/' + encodeURIComponent(paperId) + '/refs/' + encodeURIComponent(refId), {
     method: 'DELETE'
-  }).then(r => r.json()).then(data => {
+  }).then(r => {
+    if (r.status === 401) { location.href = '/login'; return Promise.reject('auth'); }
+    return r.json();
+  }).then(data => {
     _renderRefs(paperId, data.refs);
     showToast('bi-link text-secondary', '링크가 삭제됐습니다');
   }).catch(() => showToast('bi-exclamation-circle text-danger', '오류가 발생했습니다'));
@@ -276,8 +291,11 @@ function _renderRefs(paperId, refs) {
 
 function toggleBookmark(paperId, btn) {
   btn.classList.add('loading');
-  fetch('/api/bookmark/' + encodeURIComponent(paperId), { method: 'POST' })
-    .then(r => r.json())
+  fetch(location.origin + '/api/bookmark/' + encodeURIComponent(paperId), { method: 'POST' })
+    .then(r => {
+      if (r.status === 401) { location.href = '/login'; return Promise.reject('auth'); }
+      return r.json();
+    })
     .then(data => {
       btn.classList.remove('loading');
       if (data.bookmarked) {

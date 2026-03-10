@@ -5,14 +5,32 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime
+from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask, abort, jsonify, render_template, request
+from flask import (Flask, abort, jsonify, redirect, render_template,
+                   request, session, url_for)
 from pymongo import MongoClient, ASCENDING, DESCENDING
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "arxiv-briefing-secret-key-change-me")
+
+_WEBAPP_USER = os.getenv("WEBAPP_USER", "admin")
+_WEBAPP_PASSWORD = os.getenv("WEBAPP_PASSWORD", "changeme123")
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logged_in'):
+            if request.is_json or request.headers.get('X-Requested-With'):
+                return jsonify({"error": "unauthorized"}), 401
+            return redirect(url_for('login', next=request.path))
+        return f(*args, **kwargs)
+    return decorated
+
 
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "arxiv_papers")
@@ -47,7 +65,28 @@ def load_bookmarked_ids() -> set:
 
 # ── 날짜 목록 (메인) ─────────────────────────────────────────────────────────
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if username == _WEBAPP_USER and password == _WEBAPP_PASSWORD:
+            session['logged_in'] = True
+            next_url = request.args.get('next') or url_for('index')
+            return redirect(next_url)
+        error = "사용자명 또는 비밀번호가 올바르지 않습니다."
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
 @app.route("/")
+@login_required
 def index():
     col = get_collection()
     pipeline = [
@@ -84,6 +123,7 @@ def index():
 # ── 날짜별 논문 목록 ──────────────────────────────────────────────────────────
 
 @app.route("/date/<date_str>")
+@login_required
 def papers_by_date(date_str: str):
     try:
         datetime.strptime(date_str, "%Y-%m-%d")
@@ -149,6 +189,7 @@ def papers_by_date(date_str: str):
 # ── 논문 상세 ────────────────────────────────────────────────────────────────
 
 @app.route("/paper/<path:paper_id>")
+@login_required
 def paper_detail(paper_id: str):
     col = get_collection()
     paper = col.find_one({"id": paper_id}, {"_id": 0})
@@ -166,6 +207,7 @@ def paper_detail(paper_id: str):
 # ── 전체 검색 ────────────────────────────────────────────────────────────────
 
 @app.route("/search")
+@login_required
 def search():
     q           = request.args.get("q", "").strip()
     tag_filter  = request.args.get("tag", "")
@@ -212,6 +254,7 @@ def search():
 # ── 나중에 볼 논문 목록 ───────────────────────────────────────────────────────
 
 @app.route("/bookmarks")
+@login_required
 def bookmarks():
     sort_by     = request.args.get("sort", "saved_at")
     tag_filter  = request.args.get("tag", "")
@@ -270,6 +313,7 @@ def bookmarks():
 # ── 북마크 토글 API ───────────────────────────────────────────────────────────
 
 @app.route("/api/bookmark/<path:paper_id>", methods=["POST"])
+@login_required
 def toggle_bookmark(paper_id: str):
     col = get_collection()
     if not col.find_one({"id": paper_id}, {"_id": 1}):
@@ -295,6 +339,7 @@ def toggle_bookmark(paper_id: str):
 # ── 참조 링크 API ────────────────────────────────────────────────────────────
 
 @app.route("/api/paper/<path:paper_id>/refs", methods=["POST"])
+@login_required
 def add_ref(paper_id: str):
     data = request.get_json(force=True) or {}
     url = (data.get("url") or "").strip()
@@ -311,6 +356,7 @@ def add_ref(paper_id: str):
 
 
 @app.route("/api/paper/<path:paper_id>/refs/<ref_id>", methods=["DELETE"])
+@login_required
 def delete_ref(paper_id: str, ref_id: str):
     col = get_collection()
     col.update_one({"id": paper_id}, {"$pull": {"refs": {"ref_id": ref_id}}})
